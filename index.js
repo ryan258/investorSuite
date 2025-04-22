@@ -69,6 +69,62 @@ app.post('/api/scenarios', async (req, res) => {
       return res.status(400).json({ error: 'Prompt is required.' });
     }
     console.log('Received prompt:', prompt);
+
+    const useOpenAI = process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL;
+    let timelineEvents = [];
+
+    if (useOpenAI) {
+      // Use OpenAI API
+      const openaiPrompt = `Generate a positive future scenario timeline for: ${prompt}. Respond ONLY as a single valid JSON array of 3 to 5 objects, each with these exact fields: title, date, description. Focus on the near future: events should be spaced over the next 5, 10, and 20 years (starting from ${new Date().getFullYear()}). Use realistic, plausible years and avoid far-future speculation. Do not include any markdown, code blocks, or extra commentary. Example: [{\"title\":\"...\",\"date\":\"${new Date().getFullYear() + 2}\",\"description\":\"...\"}, ...]`;
+      const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_MODEL,
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: openaiPrompt }
+          ],
+          temperature: 0.7
+        })
+      });
+      const openaiData = await openaiRes.json();
+      const aiText = openaiData.choices?.[0]?.message?.content || '';
+      // Try to extract JSON array from the AI output
+      let jsonMatch = aiText.match(/\[.*\]/s);
+      if (jsonMatch) {
+        try {
+          timelineEvents = JSON.parse(jsonMatch[0]);
+        } catch (err) {
+          console.error('Error parsing OpenAI scenario array JSON:', err);
+        }
+      }
+      // Fallback: try to extract a single object
+      if ((!timelineEvents || !timelineEvents.length) && aiText.includes('{')) {
+        let singleJsonMatch = aiText.match(/\{[\s\S]*\}/);
+        if (singleJsonMatch) {
+          try {
+            timelineEvents = [JSON.parse(singleJsonMatch[0])];
+          } catch (err) {
+            console.error('Error parsing single scenario JSON from OpenAI:', err);
+          }
+        }
+      }
+      // Fallback: plain text
+      if (!timelineEvents || !timelineEvents.length) {
+        timelineEvents = [{
+          title: `Scenario for: ${prompt}`,
+          date: new Date().getFullYear().toString(),
+          description: aiText.trim() || 'No scenario returned.'
+        }];
+      }
+      return res.status(200).json(timelineEvents);
+    }
+
+    // OLLAMA fallback (existing logic)
     const ollamaResponse = await fetch(process.env.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -92,9 +148,9 @@ app.post('/api/scenarios', async (req, res) => {
     let jsonMatch = responseText.match(/\[.*\]/s); // match JSON array
     if (jsonMatch) {
       try {
-        const scenarioArray = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(scenarioArray) && scenarioArray.length > 0) {
-          return res.status(200).json(scenarioArray);
+        timelineEvents = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(timelineEvents) && timelineEvents.length > 0) {
+          return res.status(200).json(timelineEvents);
         }
       } catch (err) {
         console.error('Error parsing scenario array JSON:', err);
@@ -104,8 +160,8 @@ app.post('/api/scenarios', async (req, res) => {
     let singleJsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (singleJsonMatch) {
       try {
-        const scenarioJson = JSON.parse(singleJsonMatch[0]);
-        return res.status(200).json([scenarioJson]);
+        timelineEvents = [JSON.parse(singleJsonMatch[0])];
+        return res.status(200).json(timelineEvents);
       } catch (err) {
         console.error('Error parsing single scenario JSON:', err);
       }
@@ -121,11 +177,13 @@ app.post('/api/scenarios', async (req, res) => {
   } catch (err) {
     // Bulletproof fallback: never send 500
     console.error('Error in /api/scenarios:', err);
-    return res.status(200).json({
-      title: 'Scenario generation error',
-      date: new Date().getFullYear().toString(),
-      description: 'No scenario returned.'
-    });
+    return res.status(200).json([
+      {
+        title: 'Scenario generation error',
+        date: new Date().getFullYear().toString(),
+        description: 'No scenario returned.'
+      }
+    ]);
   }
 });
 
