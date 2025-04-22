@@ -6,12 +6,14 @@ import fs from 'fs'
 import express from 'express'
 import path from 'path'
 import readline from 'readline'
+import fetch from 'node-fetch'
 
 // Load environment variables from .env file 
 dotenv.config()
 
 // Add Express
 const app = express()
+app.use(express.json()) // Add this line to parse JSON request bodies
 const port = 3003 // You can choose any available port
 
 // Define allScenariosData as a global variable
@@ -58,6 +60,74 @@ app.get('/api/scenarios', (req, res) => {
   }
   res.json(allScenariosData)
 })
+
+// POST /api/scenarios - Generate scenario(s) based on a prompt
+app.post('/api/scenarios', async (req, res) => {
+  try {
+    const prompt = req.body.prompt;
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'Prompt is required.' });
+    }
+    console.log('Received prompt:', prompt);
+    const ollamaResponse = await fetch(process.env.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: process.env.MODEL_NAME,
+        prompt: `Generate a positive future scenario timeline for: ${prompt}. Respond ONLY as a single valid JSON array of 3 to 5 objects, each with these exact fields: title, date, description. Focus on the near future: events should be spaced over the next 5, 10, and 20 years (starting from ${new Date().getFullYear()}). Use realistic, plausible years and avoid far-future speculation. Do not include any markdown, code blocks, or extra commentary. Example: [{\"title\":\"...\",\"date\":\"${new Date().getFullYear() + 2}\",\"description\":\"...\"}, ...]`
+      })
+    });
+    console.log('Ollama response status:', ollamaResponse.status);
+    const rawResponse = await ollamaResponse.text();
+    console.log('Ollama full raw response:', rawResponse);
+    const lines = rawResponse.split(/\r?\n/).filter(l => l.trim().length > 0);
+    let responseText = '';
+    for (const line of lines) {
+      try {
+        const obj = JSON.parse(line);
+        if (typeof obj.response === 'string') responseText += obj.response;
+      } catch (err) {}
+    }
+    responseText = responseText.replace(/```[a-zA-Z]*[\s\S]*?```/g, '');
+    let jsonMatch = responseText.match(/\[.*\]/s); // match JSON array
+    if (jsonMatch) {
+      try {
+        const scenarioArray = JSON.parse(jsonMatch[0]);
+        if (Array.isArray(scenarioArray) && scenarioArray.length > 0) {
+          return res.status(200).json(scenarioArray);
+        }
+      } catch (err) {
+        console.error('Error parsing scenario array JSON:', err);
+      }
+    }
+    // Fallback: single scenario object
+    let singleJsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (singleJsonMatch) {
+      try {
+        const scenarioJson = JSON.parse(singleJsonMatch[0]);
+        return res.status(200).json([scenarioJson]);
+      } catch (err) {
+        console.error('Error parsing single scenario JSON:', err);
+      }
+    }
+    // Fallback: plain text as one event
+    return res.status(200).json([
+      {
+        title: `Scenario for: ${prompt}`,
+        date: new Date().getFullYear().toString(),
+        description: responseText.trim() || 'No scenario returned.'
+      }
+    ]);
+  } catch (err) {
+    // Bulletproof fallback: never send 500
+    console.error('Error in /api/scenarios:', err);
+    return res.status(200).json({
+      title: 'Scenario generation error',
+      date: new Date().getFullYear().toString(),
+      description: 'No scenario returned.'
+    });
+  }
+});
 
 // Serve the index.html file for the root route
 app.get('/', (req, res) => {
@@ -547,14 +617,25 @@ Each scenario object should include:
   }
 }
 
-// Start the server after the main function completes using an async IIFE
-;(async () => {
-  try {
-    await main() // Wait for the main function to complete
-    app.listen(port, () => {
-      console.log(`Server listening at http://localhost:${port}`)
-    })
-  } catch (error) {
-    console.error('Error starting the server:', error)
-  }
-})()
+// Only run the CLI "main" function if CLI_MODE is set (default: run web server only)
+const CLI_MODE = process.env.CLI_MODE === 'true';
+
+if (CLI_MODE) {
+  // Run CLI mode (interactive terminal)
+  (async () => {
+    try {
+      await main();
+      // Optionally, start the server after CLI completes
+      app.listen(port, () => {
+        console.log(`Server listening at http://localhost:${port}`);
+      });
+    } catch (error) {
+      console.error('Error in CLI mode:', error);
+    }
+  })();
+} else {
+  // Web API server only (no terminal prompts)
+  app.listen(port, () => {
+    console.log(`Server listening at http://localhost:${port}`);
+  });
+}
