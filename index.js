@@ -72,6 +72,7 @@ app.post('/api/scenarios', async (req, res) => {
 
     const useOpenAI = process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL;
     let timelineEvents = [];
+    let markdownContent = '';
 
     if (useOpenAI) {
       // Use OpenAI API
@@ -121,6 +122,12 @@ app.post('/api/scenarios', async (req, res) => {
           description: aiText.trim() || 'No scenario returned.'
         }];
       }
+      // Save markdown
+      markdownContent = `# Timeline for: ${prompt}\n\n`;
+      timelineEvents.forEach((event, idx) => {
+        markdownContent += `## ${event.title} (${event.date})\n\n${event.description}\n\n`;
+      });
+      await saveToFile(markdownContent, prompt);
       return res.status(200).json(timelineEvents);
     }
 
@@ -150,6 +157,12 @@ app.post('/api/scenarios', async (req, res) => {
       try {
         timelineEvents = JSON.parse(jsonMatch[0]);
         if (Array.isArray(timelineEvents) && timelineEvents.length > 0) {
+          // Save markdown
+          markdownContent = `# Timeline for: ${prompt}\n\n`;
+          timelineEvents.forEach((event, idx) => {
+            markdownContent += `## ${event.title} (${event.date})\n\n${event.description}\n\n`;
+          });
+          await saveToFile(markdownContent, prompt);
           return res.status(200).json(timelineEvents);
         }
       } catch (err) {
@@ -161,19 +174,30 @@ app.post('/api/scenarios', async (req, res) => {
     if (singleJsonMatch) {
       try {
         timelineEvents = [JSON.parse(singleJsonMatch[0])];
+        // Save markdown
+        markdownContent = `# Timeline for: ${prompt}\n\n`;
+        timelineEvents.forEach((event, idx) => {
+          markdownContent += `## ${event.title} (${event.date})\n\n${event.description}\n\n`;
+        });
+        await saveToFile(markdownContent, prompt);
         return res.status(200).json(timelineEvents);
       } catch (err) {
         console.error('Error parsing single scenario JSON:', err);
       }
     }
     // Fallback: plain text as one event
-    return res.status(200).json([
-      {
-        title: `Scenario for: ${prompt}`,
-        date: new Date().getFullYear().toString(),
-        description: responseText.trim() || 'No scenario returned.'
-      }
-    ]);
+    timelineEvents = [{
+      title: `Scenario for: ${prompt}`,
+      date: new Date().getFullYear().toString(),
+      description: responseText.trim() || 'No scenario returned.'
+    }];
+    // Save markdown
+    markdownContent = `# Timeline for: ${prompt}\n\n`;
+    timelineEvents.forEach((event, idx) => {
+      markdownContent += `## ${event.title} (${event.date})\n\n${event.description}\n\n`;
+    });
+    await saveToFile(markdownContent, prompt);
+    return res.status(200).json(timelineEvents);
   } catch (err) {
     // Bulletproof fallback: never send 500
     console.error('Error in /api/scenarios:', err);
@@ -385,23 +409,36 @@ async function generateMarkdownForScenario(scenario, items) {
   }
 }
 
-// Function to save content to a file with a timestamp in the filename 
+// Function to save content to a file with a short date and scenario in the filename 
 // in a /logs directory
-async function saveToFile(content) {
-  const timestamp = new Date().toISOString().replace(/:/g, '-')
-  const filename = `ai_positive_scenarios_${timestamp}.md`
-  const directory = './logs'
+async function saveToFile(content, scenarioPrompt = '') {
+  // Format: YYMMDD-HHMM-queryslug.md
+  const now = new Date();
+  const pad = n => n.toString().padStart(2, '0');
+  const year = now.getFullYear().toString().slice(-2); // last 2 digits
+  const month = pad(now.getMonth() + 1);
+  const day = pad(now.getDate());
+  const hour = pad(now.getHours());
+  const min = pad(now.getMinutes());
+  // Sanitize scenario prompt for filename
+  let slug = scenarioPrompt
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'scenario';
+  const filename = `${year}${month}${day}-${hour}${min}-${slug}.md`;
+  const directory = './logs';
 
   // Create the directory if it doesn't exist
   if (!fs.existsSync(directory)) {
-    fs.mkdirSync(directory)
+    fs.mkdirSync(directory);
   }
 
   try {
-    await fs.promises.writeFile(`${directory}/${filename}`, content)
-    console.log(`File '${filename}' saved to '${directory}' directory! `)
+    await fs.promises.writeFile(`${directory}/${filename}`, content);
+    console.log(`File '${filename}' saved to '${directory}' directory! `);
   } catch (err) {
-    console.error(`Error writing to file '${filename}':`, err)
+    console.error(`Error writing to file '${filename}':`, err);
   }
 }
 
@@ -669,7 +706,7 @@ Each scenario object should include:
     }
 
     // Save the final Markdown content to a file 
-    await saveToFile(finalMarkdownContent)
+    await saveToFile(finalMarkdownContent);
   } catch (error) {
     console.error('Error in main function:', error)
   }
