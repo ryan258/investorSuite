@@ -7,7 +7,7 @@ import express from 'express'
 import path from 'path'
 import readline from 'readline'
 
-// Load environment variables from .env file 🤫
+// Load environment variables from .env file 
 dotenv.config()
 
 // Add Express
@@ -19,6 +19,43 @@ let allScenariosData = []
 
 // API endpoint to serve scenario data
 app.get('/api/scenarios', (req, res) => {
+  // If no data has been generated, return a default scenario for accessibility/testing
+  if (!allScenariosData || allScenariosData.length === 0) {
+    return res.json([
+      {
+        scenario: {
+          title: 'Sample AI Scenario',
+          description: 'This is a sample scenario for accessibility and testing.',
+        },
+        items: [
+          {
+            item: 'Sample Step',
+            eta: { eta: 'Within the next 5 years' },
+            futureTimelines: {
+              optimistic: 'Rapid adoption and positive change.',
+              realistic: 'Gradual progress with some challenges.',
+              pessimistic: 'Slow uptake and resistance.',
+              wildcard: 'Unexpected breakthrough occurs.'
+            },
+            analogy: {
+              event: 'Internet Adoption',
+              similarity: 'Transformative technology with global impact.',
+              lesson: 'Broad access and education are key.'
+            },
+            stakeholders: [
+              { name: 'Developers', role: 'Builder', description: 'Create and maintain the technology.' },
+              { name: 'Users', role: 'Beneficiary', description: 'Benefit from the solutions.' }
+            ],
+            innovation: {
+              idea: 'AI-powered accessibility tools',
+              potential: 'Empower people with disabilities worldwide.',
+              challenges: 'Ensuring inclusivity and affordability.'
+            }
+          }
+        ]
+      }
+    ])
+  }
   res.json(allScenariosData)
 })
 
@@ -27,12 +64,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(path.resolve(), 'index.html'))
 })
 
-// Initialize the OpenAI API client 🚀
+// Initialize the OpenAI API client 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-// Define Zod schemas for structured outputs from the OpenAI API 📋
+// Define Zod schemas for structured outputs from the OpenAI API 
 
 // Schema for the initial AI scenarios (positive in this case)
 const ScenarioSchema = z.object({
@@ -41,38 +78,38 @@ const ScenarioSchema = z.object({
   items: z.array(z.string()),
 })
 
-// Schema for the estimated timeline (ETA) ⏱️
+// Schema for the estimated timeline (ETA) 
 const ETASchema = z.object({
   eta: z.string(),
 })
 
-// Schema for the historical analogy 🏛️
+// Schema for the historical analogy 
 const AnalogySchema = z.object({
   event: z.string(),
   similarity: z.string(),
   lesson: z.string(),
 })
 
-// Schema for Stakeholder (Individual Stakeholder) 👤 (Updated)
+// Schema for Stakeholder (Individual Stakeholder) (Updated)
 const StakeholderSchema = z.object({
   name: z.string(),
   role: z.string(),
   description: z.string(), // Add description property
 })
 
-// Schema for Stakeholder Analysis (List of Stakeholders) 👥
+// Schema for Stakeholder Analysis (List of Stakeholders) 
 const StakeholdersSchema = z.object({
   stakeholders: z.array(StakeholderSchema),
 })
 
-// Schema for Innovation (from The Innovator agent) 💡
+// Schema for Innovation (from The Innovator agent) 
 const InnovationSchema = z.object({
   idea: z.string(),
   potential: z.string(),
   challenges: z.string(),
 })
 
-// Schema for Future Timelines (from The Futurist agent) 🔮
+// Schema for Future Timelines (from The Futurist agent) 
 const FutureTimelinesSchema = z.object({
   optimistic: z.string(),
   pessimistic: z.string(),
@@ -80,7 +117,7 @@ const FutureTimelinesSchema = z.object({
   wildcard: z.string().optional(), // Optional wildcard event
 })
 
-// Function to generate future timelines for a scenario item 🔮
+// Function to generate future timelines for a scenario item 
 async function generateFutureTimelines(scenarioItem) {
   try {
     const timelinesPrompt = `
@@ -115,7 +152,7 @@ async function generateFutureTimelines(scenarioItem) {
   }
 }
 
-// Function to generate innovative ideas for a scenario item 💡
+// Function to generate innovative ideas for a scenario item 
 async function generateInnovation(scenarioItem) {
   try {
     const innovationPrompt = `
@@ -143,7 +180,7 @@ async function generateInnovation(scenarioItem) {
   }
 }
 
-// Function to get structured output from the OpenAI API 🤖
+// Function to get structured output from the OpenAI API 
 // It can optionally use a Zod schema for validation and parsing
 async function getStructuredOutput(prompt, schema = null) {
   try {
@@ -165,7 +202,7 @@ async function getStructuredOutput(prompt, schema = null) {
   }
 }
 
-// Function to generate Markdown content for a single scenario ✍️
+// Function to generate Markdown content for a single scenario 
 async function generateMarkdownForScenario(scenario, items) {
   try {
     let markdownContent = ''
@@ -185,7 +222,7 @@ async function generateMarkdownForScenario(scenario, items) {
       markdownContent += `### ${item}\n\n`
       markdownContent += `**ETA:** ${eta.eta}\n\n`
 
-      // Add Future Timelines section 🔮
+      // Add Future Timelines section 
       markdownContent += `**Future Timelines:**\n\n`
       markdownContent += `- **Optimistic:** ${futureTimelines.optimistic}\n`
       markdownContent += `- **Pessimistic:** ${futureTimelines.pessimistic}\n`
@@ -206,7 +243,7 @@ async function generateMarkdownForScenario(scenario, items) {
       }
       markdownContent += '\n'
 
-      // Add Innovation section 💡
+      // Add Innovation section 
       markdownContent += `**Innovation - Moonshot Idea:**\n\n`
       markdownContent += `${innovation.idea}\n\n`
       markdownContent += `**Potential Impact:** ${innovation.potential}\n\n`
@@ -220,7 +257,7 @@ async function generateMarkdownForScenario(scenario, items) {
   }
 }
 
-// Function to save content to a file with a timestamp in the filename 💾
+// Function to save content to a file with a timestamp in the filename 
 // in a /logs directory
 async function saveToFile(content) {
   const timestamp = new Date().toISOString().replace(/:/g, '-')
@@ -234,7 +271,7 @@ async function saveToFile(content) {
 
   try {
     await fs.promises.writeFile(`${directory}/${filename}`, content)
-    console.log(`File '${filename}' saved to '${directory}' directory! 🎉`)
+    console.log(`File '${filename}' saved to '${directory}' directory! `)
   } catch (err) {
     console.error(`Error writing to file '${filename}':`, err)
   }
@@ -296,7 +333,7 @@ async function selectTopic(topics) {
   })
 }
 
-// Function to perform stakeholder analysis for a scenario item 👥
+// Function to perform stakeholder analysis for a scenario item 
 async function analyzeStakeholders(scenarioItem) {
   try {
     const stakeholderPrompt = `
@@ -329,7 +366,7 @@ async function analyzeStakeholders(scenarioItem) {
   }
 }
 
-// Function to generate ETA for the item ⏱️
+// Function to generate ETA for the item 
 async function generateETA(item) {
   try {
     const etaPrompt = `Consider the following step towards a positive AI scenario: "${item}"
@@ -352,7 +389,7 @@ async function generateETA(item) {
   }
 }
 
-// Function to generate historical analogy for the item 🏛️
+// Function to generate historical analogy for the item 
 async function generateAnalogy(item) {
   try {
     const analogyPrompt = `Consider this step towards a positive AI scenario: "${item}"
@@ -435,28 +472,28 @@ Each scenario object should include:
     // Reset allScenariosData
     allScenariosData = []
 
-    // Process each scenario 🔄
+    // Process each scenario 
     for (const scenario of scenarios) {
       console.log('Scenario:', scenario)
 
       // Array to store data for items within the current scenario
       const scenarioItemsData = []
 
-      // Process each item (step) within the scenario 🔍
+      // Process each item (step) within the scenario 
       for (const item of scenario.items) {
-        // Generate ETA for the item ⏱️
+        // Generate ETA for the item 
         const eta = await generateETA(item)
 
-        // Generate historical analogy for the item 🏛️
+        // Generate historical analogy for the item 
         const analogy = await generateAnalogy(item)
 
-        // Stakeholder Analysis 👥
+        // Stakeholder Analysis 
         const stakeholders = await analyzeStakeholders(item)
 
-        // Generate Innovation 💡
+        // Generate Innovation 
         const innovation = await generateInnovation(item)
 
-        // Generate Future Timelines 🔮
+        // Generate Future Timelines 
         const futureTimelines = await generateFutureTimelines(item)
 
         console.log('  Item:', item)
@@ -489,7 +526,7 @@ Each scenario object should include:
     finalMarkdownContent +=
       'TWO distinct scenarios illustrating how AI can transform humanity.\n\n'
 
-    // Process each scenario 🔄
+    // Process each scenario 
     for (const { scenario, items } of allScenariosData) {
       console.log('Generating Markdown for scenario:', scenario.title) // Log the scenario being processed
 
@@ -503,7 +540,7 @@ Each scenario object should include:
       finalMarkdownContent += scenarioMarkdown
     }
 
-    // Save the final Markdown content to a file 💾
+    // Save the final Markdown content to a file 
     await saveToFile(finalMarkdownContent)
   } catch (error) {
     console.error('Error in main function:', error)
