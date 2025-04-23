@@ -4,23 +4,25 @@
   <div class="timeline-container">
     <h2 class="text-2xl font-bold mb-4">{{ title }}</h2>
     <div class="timeline">
-      <div v-for="(event, index) in events" :key="index" class="timeline-event">
-        <div class="timeline-point"></div>
-        <div class="timeline-content">
-          <h3 class="text-lg font-semibold">{{ event.title }}</h3>
-          <p class="text-sm text-gray-600">{{ event.date }}</p>
-          <p>{{ event.description }}</p>
-        </div>
-      </div>
+      <TimelineNode
+        v-for="(event, index) in events"
+        :key="index"
+        :event="event"
+        :index="index"
+        :expanded-nodes="expandedNodes"
+        @expand-node="onExpandNode"
+        @expand-node-recursive="$emit('expand-node-recursive', $event)"
+      />
     </div>
   </div>
 </template>
 
 <script>
-import { defineComponent } from 'vue';
+import TimelineNode from './TimelineNode.vue';
 
-export default defineComponent({
+export default {
   name: 'TimelineVisualization',
+  components: { TimelineNode },
   props: {
     title: {
       type: String,
@@ -36,29 +38,57 @@ export default defineComponent({
           typeof event.description === 'string'
         );
       }
+    },
+    expandedNodes: {
+      type: Object,
+      default: () => ({})
+    }
+  },
+  emits: ['expand-node-recursive', 'expand-node'],
+  methods: {
+    onExpandNode(payload) {
+      this.$emit('expand-node', payload);
     }
   }
-});
+};
 </script>
 
 <style scoped>
 .timeline-container {
-  @apply max-w-3xl mx-auto p-4;
+  max-width: 48rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1rem;
 }
-
 .timeline {
-  @apply relative border-l-2 border-gray-300 ml-3;
+  position: relative;
+  border-left: 2px solid #d1d5db;
+  margin-left: 0.75rem;
 }
-
 .timeline-event {
-  @apply mb-8 ml-6;
+  margin-bottom: 2rem;
+  margin-left: 1.5rem;
 }
-
 .timeline-point {
-  @apply absolute w-4 h-4 bg-blue-500 rounded-full -left-2 mt-1;
+  position: absolute;
+  width: 1rem;
+  height: 1rem;
+  background-color: #3498db;
+  border-radius: 50%;
+  left: -0.5rem;
+  margin-top: 0.25rem;
 }
-
 .timeline-content {
-  @apply bg-white p-4 rounded shadow;
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  box-shadow: 0 0 0.25rem rgba(0, 0, 0, 0.1);
+}
+.expanded-horizontal-stack {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  margin-left: 1.5rem;
 }
 </style>

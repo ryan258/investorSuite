@@ -1,5 +1,4 @@
 import dotenv from 'dotenv'
-import OpenAI from 'openai'
 import { zodResponseFormat } from 'openai/helpers/zod'
 import { z } from 'zod'
 import fs from 'fs'
@@ -74,9 +73,13 @@ app.post('/api/scenarios', async (req, res) => {
     let timelineEvents = [];
     let markdownContent = '';
 
+    // Updated prompt for more realistic, milestone-based, non-cookie-cutter timelines
+    const nowYear = new Date().getFullYear();
+    const endYear = nowYear + 10;
+    const aiPrompt = `Generate a positive future scenario timeline for: ${prompt}. Limit the timespan to between ${nowYear} and ${endYear}. Include ALL foreseeable milestone events (not just generic intervals like 5, 10, or 15 years). Use realistic, plausible years and actual milestone dates if known. Do not invent artificial intervals. Respond ONLY as a single valid JSON array of 3 to 7 objects, each with these exact fields: title, date, description. Do not include markdown, code blocks, or extra commentary. Example: [{\"title\":\"...\",\"date\":\"${nowYear + 1}\",\"description\":\"...\"}, ...]`;
+
     if (useOpenAI) {
       // Use OpenAI API
-      const openaiPrompt = `Generate a positive future scenario timeline for: ${prompt}. Respond ONLY as a single valid JSON array of 3 to 5 objects, each with these exact fields: title, date, description. Focus on the near future: events should be spaced over the next 5, 10, and 20 years (starting from ${new Date().getFullYear()}). Use realistic, plausible years and avoid far-future speculation. Do not include any markdown, code blocks, or extra commentary. Example: [{\"title\":\"...\",\"date\":\"${new Date().getFullYear() + 2}\",\"description\":\"...\"}, ...]`;
       const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -87,7 +90,7 @@ app.post('/api/scenarios', async (req, res) => {
           model: process.env.OPENAI_MODEL,
           messages: [
             { role: 'system', content: 'You are a helpful assistant.' },
-            { role: 'user', content: openaiPrompt }
+            { role: 'user', content: aiPrompt }
           ],
           temperature: 0.7
         })
@@ -118,7 +121,7 @@ app.post('/api/scenarios', async (req, res) => {
       if (!timelineEvents || !timelineEvents.length) {
         timelineEvents = [{
           title: `Scenario for: ${prompt}`,
-          date: new Date().getFullYear().toString(),
+          date: nowYear.toString(),
           description: aiText.trim() || 'No scenario returned.'
         }];
       }
@@ -131,13 +134,13 @@ app.post('/api/scenarios', async (req, res) => {
       return res.status(200).json(timelineEvents);
     }
 
-    // OLLAMA fallback (existing logic)
+    // OLLAMA fallback (existing logic, but with improved prompt)
     const ollamaResponse = await fetch(process.env.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: process.env.MODEL_NAME,
-        prompt: `Generate a positive future scenario timeline for: ${prompt}. Respond ONLY as a single valid JSON array of 3 to 5 objects, each with these exact fields: title, date, description. Focus on the near future: events should be spaced over the next 5, 10, and 20 years (starting from ${new Date().getFullYear()}). Use realistic, plausible years and avoid far-future speculation. Do not include any markdown, code blocks, or extra commentary. Example: [{\"title\":\"...\",\"date\":\"${new Date().getFullYear() + 2}\",\"description\":\"...\"}, ...]`
+        prompt: aiPrompt
       })
     });
     console.log('Ollama response status:', ollamaResponse.status);
@@ -188,7 +191,7 @@ app.post('/api/scenarios', async (req, res) => {
     // Fallback: plain text as one event
     timelineEvents = [{
       title: `Scenario for: ${prompt}`,
-      date: new Date().getFullYear().toString(),
+      date: nowYear.toString(),
       description: responseText.trim() || 'No scenario returned.'
     }];
     // Save markdown
@@ -211,15 +214,73 @@ app.post('/api/scenarios', async (req, res) => {
   }
 });
 
+// --- Export session as Markdown ---
+app.post('/api/export-session', async (req, res) => {
+  try {
+    const { sessionTitle, timelineEvents, expandedNodes } = req.body;
+    if (!timelineEvents || !Array.isArray(timelineEvents)) {
+      return res.status(400).json({ error: 'timelineEvents array required' });
+    }
+    // Recursively build markdown for timeline + expansions
+    function buildMarkdown(events, expansions, level = 2) {
+      let md = '';
+      events.forEach((event, idx) => {
+        md += `${'#'.repeat(level)} ${event.title} (${event.date})\n\n${event.description}\n\n`;
+        // If expanded, recurse
+        if (expansions && expansions[idx] && expansions[idx].children && expansions[idx].children.length > 0) {
+          md += buildMarkdown(expansions[idx].children, expansions[idx].childrenExpanded, level + 1);
+        }
+      });
+      return md;
+    }
+    const now = new Date();
+    const pad = n => n.toString().padStart(2, '0');
+    const year = now.getFullYear().toString().slice(-2);
+    const month = pad(now.getMonth() + 1);
+    const day = pad(now.getDate());
+    const hour = pad(now.getHours());
+    const min = pad(now.getMinutes());
+    let slug = (sessionTitle || 'session')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'session';
+    const filename = `${year}${month}${day}-${hour}${min}-${slug}.md`;
+    const directory = './logs';
+    if (!fs.existsSync(directory)) {
+      fs.mkdirSync(directory);
+    }
+    let markdownContent = `# Session Timeline: ${sessionTitle || 'Untitled'}\n\n`;
+    markdownContent += buildMarkdown(timelineEvents, expandedNodes, 2);
+    await fs.promises.writeFile(`${directory}/${filename}`, markdownContent);
+    return res.status(200).json({ success: true, filename });
+  } catch (err) {
+    console.error('Error exporting session:', err);
+    return res.status(500).json({ error: 'Failed to export session.' });
+  }
+});
+
+// Serve Markdown logs for download
+app.get('/api/download-log/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(path.resolve(), 'logs', filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('File not found');
+  }
+  res.download(filePath, filename);
+});
+
 // Serve the index.html file for the root route
 app.get('/', (req, res) => {
   res.sendFile(path.join(path.resolve(), 'index.html'))
 })
 
-// Initialize the OpenAI API client 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+// Only import and initialize OpenAI if environment variables are present
+let openai = null;
+if (process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL) {
+  const OpenAI = (await import('openai')).default;
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 // Define Zod schemas for structured outputs from the OpenAI API 
 
@@ -272,6 +333,9 @@ const FutureTimelinesSchema = z.object({
 // Function to generate future timelines for a scenario item 
 async function generateFutureTimelines(scenarioItem) {
   try {
+    if (!openai) {
+      throw new Error('OpenAI is not initialized');
+    }
     const timelinesPrompt = `
     Consider this step towards a positive AI scenario: "${scenarioItem}"
 
@@ -307,6 +371,9 @@ async function generateFutureTimelines(scenarioItem) {
 // Function to generate innovative ideas for a scenario item 
 async function generateInnovation(scenarioItem) {
   try {
+    if (!openai) {
+      throw new Error('OpenAI is not initialized');
+    }
     const innovationPrompt = `
     Consider this step towards a positive AI scenario: "${scenarioItem}"
 
@@ -336,6 +403,9 @@ async function generateInnovation(scenarioItem) {
 // It can optionally use a Zod schema for validation and parsing
 async function getStructuredOutput(prompt, schema = null) {
   try {
+    if (!openai) {
+      throw new Error('OpenAI is not initialized');
+    }
     const completion = await openai.beta.chat.completions.parse({
       model: 'gpt-4o-mini',
       messages: [
@@ -501,6 +571,9 @@ async function selectTopic(topics) {
 // Function to perform stakeholder analysis for a scenario item 
 async function analyzeStakeholders(scenarioItem) {
   try {
+    if (!openai) {
+      throw new Error('OpenAI is not initialized');
+    }
     const stakeholderPrompt = `
     Identify up to 5 key stakeholders who would be significantly affected by the following AI scenario step: "${scenarioItem}"
 
@@ -534,6 +607,9 @@ async function analyzeStakeholders(scenarioItem) {
 // Function to generate ETA for the item 
 async function generateETA(item) {
   try {
+    if (!openai) {
+      throw new Error('OpenAI is not initialized');
+    }
     const etaPrompt = `Consider the following step towards a positive AI scenario: "${item}"
 
     Provide your best estimate for when this step could be realized, considering current technological trends and potential advancements. 
@@ -557,6 +633,9 @@ async function generateETA(item) {
 // Function to generate historical analogy for the item 
 async function generateAnalogy(item) {
   try {
+    if (!openai) {
+      throw new Error('OpenAI is not initialized');
+    }
     const analogyPrompt = `Consider this step towards a positive AI scenario: "${item}"
 
 Provide a historical analogy that highlights a similar advancement or event that had a significant positive impact on humanity.

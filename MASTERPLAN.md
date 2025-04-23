@@ -53,25 +53,25 @@ Individuals and organizations interested in exploring how AI can contribute to m
 ## 5. Development Phases
 
 ### Phase 1: Core Functionality
-1. Set up project structure and backend server
-2. Implement user input system and AI topic generation
-3. Integrate OpenAI API for scenario generation
-4. Create basic frontend for input and displaying results
+- [x] Set up project structure and backend server
+- [x] Implement user input system and AI topic generation
+- [x] Integrate OpenAI API for scenario generation
+- [x] Create basic frontend for input and displaying results
 
 ### Phase 2: Data Visualization
-1. Implement timeline visualization component
-2. Add investor sentiment analysis and visualization
-3. Develop stakeholder mapping feature
+- [x] Implement timeline visualization component (interactive, expandable)
+- [x] Add investor sentiment analysis (basic; advanced visuals in progress)
+- [x] Develop stakeholder mapping feature (basic; advanced visuals in progress)
 
 ### Phase 3: UI/UX Enhancements
-1. Refine home page design and user input experience
-2. Create the /app route for displaying detailed results
-3. Implement interactive elements for exploring generated scenarios
+- [x] Refine home page design and user input experience
+- [x] Create the /app route for displaying detailed results
+- [x] Implement interactive elements for exploring generated scenarios (recursive expansion)
 
 ### Phase 4: Optimization and Testing
-1. Optimize API calls and data processing
-2. Implement error handling and input validation
-3. Conduct thorough testing and bug fixing
+- [ ] Optimize API calls and data processing
+- [ ] Implement error handling and input validation (in progress)
+- [ ] Conduct thorough testing and bug fixing (in progress)
 
 ## 6. Potential Challenges and Solutions
 
@@ -90,17 +90,9 @@ Individuals and organizations interested in exploring how AI can contribute to m
 ## 7. Future Expansion Ideas
 
 1. User Accounts (Low Priority)
-   - If needed in the future, implement a simple user authentication system
-   - Allow users to save and share their generated scenarios
-
-2. Collaborative Scenario Building
-   - Enable multiple users to collaboratively edit and refine scenarios
-
-3. Integration with Real-world Data
-   - Incorporate current news and technological trends to inform scenario generation
-
-4. Scenario Comparison Tool
-   - Allow users to compare multiple generated scenarios side-by-side
+2. Collaborative Scenario Building (planned)
+3. Integration with Real-world Data (planned)
+4. Scenario Comparison Tool (planned)
 
 ## 8. Security and Privacy Considerations
 
@@ -112,3 +104,12 @@ While user authentication is not a current priority, ensure that:
 ## 9. Conclusion
 
 This AI-Powered Future Scenario Generator aims to provide users with a powerful tool for exploring positive AI futures. By focusing on modular design and core functionality, the project can quickly deliver value while remaining flexible for future enhancements.
+
+## 10. Progress & Changelog
+
+**2025-04-22**
+- Core scenario generation, timeline visualization, and export features are live
+- Stakeholder, analogy, innovation, and ETA analyses per scenario step implemented
+- Basic investor sentiment and stakeholder mapping available
+- Recursive event expansion in timeline UI
+- Docs updated to reflect current progress

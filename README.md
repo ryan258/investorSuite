@@ -2,6 +2,22 @@
 
 Welcome to the AI-Powered Future Scenario Generator! This innovative tool harnesses the power of AI to explore and visualize positive future outcomes in a world shaped by artificial intelligence. 🚀🌍
 
+## 🚦 Project Status
+
+**Status:** Beta (Core functionality implemented, advanced features in progress)
+
+### Feature Progress
+- ✅ AI-powered scenario generation (OpenAI API integration)
+- ✅ User input system for custom prompts
+- ✅ Interactive timeline visualization (expandable events)
+- ✅ Export scenarios as Markdown
+- ✅ Stakeholder, analogy, innovation, and ETA analysis per scenario step
+- ⚠️ Investor sentiment analysis (basic, advanced visuals in progress)
+- ⚠️ Stakeholder mapping (basic, advanced visuals in progress)
+- ⏳ Collaborative scenario building (planned)
+- ⏳ Real-world data integration (planned)
+- ⏳ Scenario comparison tool (planned)
+
 ## 🌟 Features
 
 - 🧠 AI-powered scenario generation using OpenAI's GPT-4o-mini model
@@ -46,18 +62,18 @@ Before you begin, ensure you have the following installed:
 
 ## 🖥️ Usage
 
-1. 🏠 On the home page, you'll find an input field where you can enter your own scenario prompt.
-2. 🤖 If you're not sure what to enter, click the "Get AI Topics" button for inspiration!
-3. 🚀 Click "Generate Scenario" to create your AI-powered future scenario.
-4. 📊 Explore the generated scenario, complete with timelines, investor sentiment, and stakeholder information.
-5. 🔄 Want to try again? Simply enter a new prompt or select a new AI-generated topic!
+1. 🏠 Enter a scenario prompt or topic on the home page.
+2. 🤖 Click "Generate Scenario" to create a future scenario timeline.
+3. 🔍 Expand timeline events for more detail (recursive expansion supported).
+4. 📊 Explore scenario details, including stakeholder, analogy, innovation, and ETA analyses.
+5. 💾 Export your session as Markdown for sharing or future reference.
 
 ## 🛠️ Tech Stack
 
 - Backend: Node.js with Express.js
-- Frontend: Vue.js and Tailwind CSS
+- Frontend: Vue.js (SPA) and Tailwind CSS
 - AI Integration: OpenAI API (gpt-4o-mini model)
-- Data Visualization: D3.js
+- Data Visualization: Custom Vue components (D3.js planned)
 
 ## 🤝 Contributing
 
